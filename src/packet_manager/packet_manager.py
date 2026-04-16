@@ -26,26 +26,22 @@ class PacketManager:
     def get_all(self):
         return self.packets
 
-    def filter_by_protocol(self, protocol):
-        return [p for p in self.packets if p.protocol == protocol]
+    def filter_packets(self, protocol=None, ip=None, mac=None, start=None, end=None):
+        result = self.packets
 
-    def filter_by_ip(self, ip):
-        return [
-            p for p in self.packets
-            if p.src == ip or p.dst == ip
-        ]
+        if protocol:
+            result = [p for p in result if p.protocol == protocol]
 
-    def filter_by_mac(self, mac):
-        return [
-            p for p in self.packets
-            if p.src == mac or p.dst == mac
-        ]
-    
-    def get_by_time_range(self, start, end):
-        return [
-            p for p in self.packets
-            if start <= p.timestamp <= end
-        ]
+        if ip:
+            result = [p for p in result if p.src == ip or p.dst == ip]
+
+        if mac:
+            result = [p for p in result if p.src == mac or p.dst == mac]
+
+        if start and end:
+            result = [p for p in result if start <= p.timestamp <= end]
+
+        return result
 
     def count_by_protocol(self):
         counts = {}
