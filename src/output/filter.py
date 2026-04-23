@@ -1,4 +1,5 @@
-from packet_manager import filter_packets
+from packet_manager.packet_manager import filter_packets
+
 def get_user_filter():
 
     print("=== Filters ===")

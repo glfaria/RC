@@ -2,7 +2,7 @@
 VENV = venv
 
 # Interface padrão
-INTERFACE = eth0
+INTERFACE = wlo1
 
 # Ficheiro de log
 LOGFILE = logs/sniffer_log.json
