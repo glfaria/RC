@@ -38,8 +38,11 @@ class PacketManager:
         if mac:
             result = [p for p in result if p.src == mac or p.dst == mac]
 
-        if start and end:
-            result = [p for p in result if start <= p.timestamp <= end]
+        if start is not None:
+            result = [p for p in result if p.timestamp >= start]
+
+        if end is not None:
+            result = [p for p in result if p.timestamp <= end]
 
         return result
 
