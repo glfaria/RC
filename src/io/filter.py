@@ -1,3 +1,4 @@
+from packet_manager import filter_packets
 def get_user_filter():
 
     print("=== Filters ===")
@@ -17,13 +18,9 @@ def get_user_filter():
     start = start if start else None
     end = end if end else None
 
-    return {
-        "protocol": protocol,
-        "ip": ip,
-        "mac": mac,
-        "start": start,
-        "end": end
-    }
+    filter_packets(protocol=protocol, ip=ip, mac=mac, start=start, end=end)
+
+   
 
 
 def print_selected_filters(filters):
