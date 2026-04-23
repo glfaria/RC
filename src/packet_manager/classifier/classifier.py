@@ -1,14 +1,19 @@
 from scapy.all import ARP, ICMP, TCP, UDP, IP, Ether
+from datetime import datetime
 
 def classify_packet(pkt):
     data = {}
 
-    data["timestamp"] = pkt.time
+    data["timestamp"] = datetime.fromtimestamp(pkt.time).isoformat()
     data["length"] = len(pkt)
 
     if pkt.haslayer(Ether):
-        data["src"] = pkt[Ether].src
-        data["dst"] = pkt[Ether].dst
+        data["mac_src"] = pkt[Ether].src
+        data["mac_dst"] = pkt[Ether].dst
+
+    if pkt.haslayer(IP):
+        data["ip_src"] = pkt[IP].src
+        data["ip_dst"] = pkt[IP].dst
 
     if pkt.haslayer(ARP):
         data["protocol"] = "ARP"

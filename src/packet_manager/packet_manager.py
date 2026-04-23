@@ -16,8 +16,8 @@ class PacketManager:
         packet = Packet(
             timestamp=data["timestamp"],
             protocol=data["protocol"],
-            src=data.get("src"),
-            dst=data.get("dst"),
+            src=data.get("ip_src") or data.get("mac_src"),
+            dst=data.get("ip_dst") or data.get("mac_dst"),
             length=data["length"],
             summary=data["summary"]
         )
