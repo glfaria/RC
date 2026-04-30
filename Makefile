@@ -13,20 +13,23 @@ venv:
 	$(VENV)/bin/pip install --upgrade pip
 	$(VENV)/bin/pip install -r requirements.txt
 
-# --- Run live (console) ---
-runlive:
-	@echo "Running sniffer in LIVE mode..."
-	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode live
+run-tui-live:
+	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode live --ui tui
 
-# --- Run log (file only) ---
-runlog:
-	@echo "Running sniffer in LOG mode..."
-	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode log --logfile $(LOGFILE)
+run-tui-log:
+	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode log --ui tui --logfile $(LOGFILE)
 
-# --- Run both ---
-runboth:
-	@echo "Running sniffer in LIVE + LOG mode..."
-	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode both --logfile $(LOGFILE)
+run-tui-both:
+	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode both --ui tui --logfile $(LOGFILE)
+
+run-gui-live:
+	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode live --ui gui
+
+run-gui-log:
+	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode log --ui gui --logfile $(LOGFILE)
+
+run-gui-both:
+	$(VENV)/bin/python3 src/main.py --interface $(INTERFACE) --mode both --ui gui --logfile $(LOGFILE)
 
 # --- Clean venv ---
 clean:

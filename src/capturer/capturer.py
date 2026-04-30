@@ -11,12 +11,20 @@ class Capturer:
         self.running = True
 
         def _sniff():
-            sniff(
-                iface=self.iface,
-                prn=process_packet,
-                store=False,
-                stop_filter=lambda x: not self.running
-            )
+            try:
+                sniff(
+                    iface=self.iface,
+                    prn=process_packet,
+                    store=False,
+                    stop_filter=lambda x: not self.running
+                )
+            except PermissionError as e:
+                print("[ERRO] Permissões insuficientes para capturar pacotes.")
+                print("Sugestão: correr com sudo.")
+                self.running = False
+            except Exception as e:
+                print(f"[ERRO inesperado] {e}")
+                self.running = False
 
         self.thread = threading.Thread(target=_sniff)
         self.thread.start()
