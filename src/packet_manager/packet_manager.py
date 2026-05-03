@@ -9,7 +9,8 @@ class PacketManager:
         self.filter = PacketFilter()
 
     def handle_packet(self, pkt):
-        data = classify_packet(pkt)
+        raw = bytes(pkt)
+        data = classify_packet(raw)
         if not data:
             return
 
@@ -19,7 +20,9 @@ class PacketManager:
             src=data.get("ip_src") or data.get("mac_src"),
             dst=data.get("ip_dst") or data.get("mac_dst"),
             length=data["length"],
-            summary=data["summary"]
+            summary=data["summary"],
+            raw=raw,
+            details=data["details"],
         )
 
         self.store(packet)
