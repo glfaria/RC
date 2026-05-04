@@ -1,5 +1,5 @@
 from .packet import Packet
-from .classifier.classifier import classify_packet
+from .classifier import classify_packet
 from .filters import PacketFilter
 
 class PacketManager:
