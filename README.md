@@ -57,8 +57,6 @@ Dependências principais:
 make venv
 ```
 
----
-
 ## 2. Selecionar interface de rede
 
 Listar interfaces disponíveis:

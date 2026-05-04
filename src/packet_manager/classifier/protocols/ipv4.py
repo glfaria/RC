@@ -1,8 +1,3 @@
-"""protocols/ipv4.py — Parser IPv4 (RFC 791).
-
-Despacha para TCP / UDP / ICMP com base no campo protocol do header.
-"""
-
 import struct
 import ipaddress
 from ..utils import verify_checksum
@@ -12,7 +7,6 @@ from .icmp import parse_icmp
 
 PROTO_NAMES = {1: "ICMP", 6: "TCP", 17: "UDP", 47: "GRE", 50: "ESP", 89: "OSPF"}
 
-# Tabela de despacho: ip_proto → função
 _TRANSPORT: dict[int, callable] = {
     1:  parse_icmp,
     6:  parse_tcp,

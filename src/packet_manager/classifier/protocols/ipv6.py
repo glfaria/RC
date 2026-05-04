@@ -1,17 +1,9 @@
-"""protocols/ipv6.py — Parser IPv6 (RFC 8200).
-
-Despacha para TCP / UDP / ICMPv6 com base no Next Header.
-Trata extension headers comuns (hop-by-hop, routing, fragment, etc.)
-para chegar ao protocolo de transporte real.
-"""
-
 import struct
 import ipaddress
 from .tcp  import parse_tcp
 from .udp  import parse_udp
 from .icmp import parse_icmp  # ICMPv6 partilha estrutura base com ICMPv4
 
-# Next Header values
 NH_HOPBYHOP = 0
 NH_TCP      = 6
 NH_UDP      = 17
@@ -28,10 +20,8 @@ NH_NAMES = {
     NH_ESP: "ESP", NH_AUTH: "AH", NH_FRAGMENT: "Fragment",
 }
 
-# Extension headers que têm (next_header, length_in_8bytes) no início
 _EXT_HEADERS = {NH_HOPBYHOP, NH_ROUTING, NH_DSTOPT, NH_AUTH}
 
-# Tabela de despacho: next_header → função
 _TRANSPORT: dict[int, callable] = {
     NH_TCP:    parse_tcp,
     NH_UDP:    parse_udp,
@@ -58,7 +48,7 @@ def _skip_extension_headers(raw: bytes, offset: int, next_header: int) -> tuple[
             break
         next_header_new = raw[offset]
         if next_header == NH_FRAGMENT:
-            offset += 8          # Fragment header tem sempre 8 bytes
+            offset += 8        
         else:
             ext_len = (raw[offset + 1] + 1) * 8
             offset += ext_len
@@ -97,11 +87,9 @@ def parse_ipv6(raw: bytes, offset: int, result: dict) -> dict:
         "dst_ip":        ip_dst,
     }
 
-    # Avança para além do header fixo (40 bytes) e salta extension headers
     transport_offset = offset + 40
     next_header, transport_offset = _skip_extension_headers(raw, transport_offset, next_header)
 
-    # ICMPv6: enriquecer type_names antes de despachar
     if next_header == NH_ICMPV6 and len(raw) > transport_offset:
         icmp_type = raw[transport_offset]
         result["details"].setdefault("_icmpv6_hint", ICMPv6_TYPE_NAMES.get(icmp_type))
@@ -109,10 +97,8 @@ def parse_ipv6(raw: bytes, offset: int, result: dict) -> dict:
     parser = _TRANSPORT.get(next_header)
     if parser:
         result = parser(raw, transport_offset, result)
-        # Garante que o protocol reflecte IPv6 quando relevante
         if next_header == NH_ICMPV6:
             result["protocol"] = "ICMPv6"
-            # Substituir type_name pelo nome ICMPv6 correcto se disponível
             if "icmp" in result["details"]:
                 t = result["details"]["icmp"]["type"]
                 result["details"]["icmp"]["type_name"] = ICMPv6_TYPE_NAMES.get(t, f"type {t}")
@@ -121,7 +107,6 @@ def parse_ipv6(raw: bytes, offset: int, result: dict) -> dict:
                 )
         return result
 
-    # Protocolo IPv6 sem parser dedicado
     nh_name = NH_NAMES.get(next_header, f"nh={next_header}")
     result["protocol"] = "IPv6"
     result["summary"]  = f"IPv6 {nh_name} {ip_src} → {ip_dst}"

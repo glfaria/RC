@@ -1,4 +1,4 @@
-"""protocols/ethernet.py — Parser Ethernet + despacho por EtherType.
+"""protocols/ethernet.py — Parser Ethernet 
 
 Para adicionar um novo protocolo de rede:
   1. Criar protocols/meu_proto.py com parse_meu_proto(raw, offset, result)
