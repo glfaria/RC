@@ -293,7 +293,7 @@ class SnifferGUI(QMainWindow):
         self._demo_thread  = None
         self._demo_worker  = None
 
-        self.setWindowTitle("PKT SNIFFER")
+        self.setWindowTitle("PACKET SNIFFER")
         self.resize(1060, 680)
         self.setMinimumSize(760, 500)
         self.setStyleSheet(STYLESHEET)
@@ -330,7 +330,7 @@ class SnifferGUI(QMainWindow):
     def _open_details_dialog(self, text):
         dlg = QDialog(self)
         dlg.setWindowTitle("Detalhes do Pacote")
-        dlg.resize(600, 400)
+        dlg.resize(800, 600)
 
         layout = QVBoxLayout(dlg)
 
@@ -348,36 +348,67 @@ class SnifferGUI(QMainWindow):
         dlg.exec()
 
     def _format_packet_details(self, p):
+        BOX_WIDTH = 100  # largura da "janela" (maior)
+        
+        def hline(char="═"):
+            return char * BOX_WIDTH
+
         def section(title):
-            return f"\n{'─' * 12}  {title}  {'─' * 12}\n"
+            # cria linha de seção com título centralizado
+            title = f" {title} "
+            fill_left = (BOX_WIDTH - len(title)) // 2
+            fill_right = BOX_WIDTH - len(title) - fill_left
+            return f"\n{'─' * fill_left}{title}{'─' * fill_right}\n"
 
         def field(k, v):
-            return f"{k:<22} │ {v}"
+            # transforma None em string vazia
+            v_str = str(v) if v is not None else ""
+            # limite para que valor não ultrapasse BOX_WIDTH
+            max_val_width = BOX_WIDTH - 25
+            if len(v_str) > max_val_width:
+                v_str = v_str[:max_val_width - 3] + "..."
+            # nome à esquerda, valor à direita
+            return f"{k:<22} │ {v_str:>{BOX_WIDTH - 25}}"
 
         lines = []
-        
-        # Header
-        lines.append("╔" + "═" * 48 + "╗")
-        lines.append("║{:^48}║".format("PACKET DETAIL"))
-        lines.append("╚" + "═" * 48 + "╝\n")
 
-        # Info geral
-        lines.append(field("Timestamp", p.timestamp))
-        lines.append(field("Protocol",  p.protocol))
-        lines.append(field("Source",    p.src))
-        lines.append(field("Destination", p.dst))
-        lines.append(field("Length",    p.length))
-        lines.append(field("Summary",   getattr(p, "summary", "")))
+        # Header centralizado com borda dupla
+        lines.append("╔" + hline() + "╗")
+        lines.append(f"║{'PACKET DETAIL':^{BOX_WIDTH}}║")
+        lines.append("╚" + hline() + "╝\n")
 
+        # Informações gerais
+        general_fields = [
+            ("Timestamp", getattr(p, "timestamp", "")),
+            ("Protocol",  getattr(p, "protocol", "")),
+            ("Source",    getattr(p, "src", "")),
+            ("Destination", getattr(p, "dst", "")),
+            ("Length",    getattr(p, "length", "")),
+            ("Summary",   getattr(p, "summary", "")),
+        ]
+        for k, v in general_fields:
+            lines.append(field(k, v))
+
+        # Detalhes por camada
         details = getattr(p, "details", {})
-
-        # Layers
-        for layer, fields in details.items():
+        for layer, layer_fields in details.items():
             lines.append(section(layer.upper()))
-            for k, v in fields.items():
+            for k, v in layer_fields.items():
                 lines.append(field(k, v))
 
-        lines.append("\n" + "═" * 50)
+        # Raw data, se existir
+        raw = getattr(p, "raw", None)
+        if raw:
+            lines.append(section("RAW DATA"))
+            # hex em 16 bytes por linha
+            for i in range(0, len(raw), 16):
+                chunk = raw[i:i+16]
+                hex_str = " ".join(f"{b:02X}" for b in chunk)
+                # centraliza dentro da caixa
+                lines.append(f"{hex_str:^{BOX_WIDTH}}")
+
+        # Footer
+        lines.append("\n" + "═" * (BOX_WIDTH + 2))
 
         return "\n".join(lines)
 
@@ -410,7 +441,7 @@ class SnifferGUI(QMainWindow):
         left.setSpacing(10)
         self.dot = DotIndicator()
         left.addWidget(self.dot)
-        brand = QLabel("PKT SNIFFER")
+        brand = QLabel("PACKET SNIFFER")
         brand.setObjectName("brand")
         left.addWidget(brand)
         h.addLayout(left)
@@ -460,7 +491,7 @@ class SnifferGUI(QMainWindow):
 
         # Stats
         self.stat_pkts   = self._stat_card("PACOTES", "0")
-        self.stat_protos = self._stat_card("TOP PROTOS", "—")
+        self.stat_protos = self._stat_card("TOP PROTOCOLOS", "—")
         row.addWidget(self.stat_pkts,   1)
         row.addWidget(self.stat_protos, 1)
 
@@ -486,7 +517,7 @@ class SnifferGUI(QMainWindow):
 
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["HORA", "PROTO", "ORIGEM", "DESTINO", "LEN", "SUMMARY"])
+        self.table.setHorizontalHeaderLabels(["HORA", "PROTOCOLO", "ORIGEM", "DESTINO", "TAMANHO", "RESUMO"])
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(True)
