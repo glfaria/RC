@@ -412,8 +412,8 @@ class SnifferGUI(QMainWindow):
         v.addLayout(header)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["HORA", "PROTO", "ORIGEM", "DESTINO", "LEN"])
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(["HORA", "PROTO", "ORIGEM", "DESTINO", "LEN", "SUMMARY"])
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(True)
@@ -423,12 +423,18 @@ class SnifferGUI(QMainWindow):
         self.table.setFocusPolicy(Qt.NoFocus)
 
         hh = self.table.horizontalHeader()
-        hh.setSectionResizeMode(0, QHeaderView.Fixed);       self.table.setColumnWidth(0, 100)
-        hh.setSectionResizeMode(1, QHeaderView.Fixed);       self.table.setColumnWidth(1, 80)
-        hh.setSectionResizeMode(2, QHeaderView.Stretch)
-        hh.setSectionResizeMode(3, QHeaderView.Stretch)
-        hh.setSectionResizeMode(4, QHeaderView.Fixed);       self.table.setColumnWidth(4, 70)
+        hh.setSectionResizeMode(0, QHeaderView.Stretch);    self.table.setColumnWidth(0, 100)
+        hh.setSectionResizeMode(1, QHeaderView.Stretch);    self.table.setColumnWidth(1, 72)
+        hh.setSectionResizeMode(2, QHeaderView.Stretch);    self.table.setColumnWidth(2, 130)
+        hh.setSectionResizeMode(3, QHeaderView.Stretch);    self.table.setColumnWidth(3, 130)
+        hh.setSectionResizeMode(4, QHeaderView.Stretch);    self.table.setColumnWidth(4, 58)
+        hh.setSectionResizeMode(5, QHeaderView.Stretch);    self.table.setColumnWidth(5, 220)
         self.table.verticalHeader().setDefaultSectionSize(28)
+
+        # Auto-scroll inteligente
+        self._auto_scroll = True
+        sb = self.table.verticalScrollBar()
+        sb.valueChanged.connect(self._on_scroll)
 
         v.addWidget(self.table)
         return panel
@@ -520,7 +526,10 @@ class SnifferGUI(QMainWindow):
         self._update_table()
 
     def on_packet(self, pkt):
-        """Callback do capturer (thread externa)."""
+        """Callback do capturer (thread externa).
+        O manager.handle_packet já faz store + filter + output internamente.
+        Só precisamos de chamar uma vez — a GUI faz polling via _update_table.
+        """
         if self.manager:
             packet = self.manager.handle_packet(pkt)
             if packet:
@@ -533,6 +542,7 @@ class SnifferGUI(QMainWindow):
     # ── Slots internos ────────────────────────────────────────────────────────
 
     def _add_packet(self, d: dict):
+        """Usado apenas no modo demo (sem manager)."""
         self._pkt_buf.append(d)
         proto = d.get("protocol", "?").upper()
         self._pkt_count += 1
@@ -542,60 +552,89 @@ class SnifferGUI(QMainWindow):
         
         if self.manager:
             packets = self.manager.get_filtered_packets()
-            rows = [{"timestamp": str(p.timestamp), "protocol": p.protocol,
-                     "src": p.src, "dst": p.dst, "length": str(p.length)}
-                    for p in packets]
         else:
-            rows = list(self._pkt_buf)
+            packets = None  # demo usa _pkt_buf
 
-        if not rows:
-            return
+        if packets is not None:
+            # Modo real: adiciona apenas linhas ainda não renderizadas
+            current_rows = self.table.rowCount()
+            new_packets  = packets[current_rows:]  # só os novos
 
-        self.table.setRowCount(len(rows))
-        for i, d in enumerate(rows):
-            proto = d.get("protocol", "?").upper()
-            fg, bg = PROTO_COLORS.get(proto, (C["muted"], C["bg3"]))
+            if new_packets:
+                self.table.setRowCount(len(packets))
+                for i, p in enumerate(new_packets):
+                    self._render_row(current_rows + i, {
+                        "timestamp": str(p.timestamp),
+                        "protocol":  p.protocol,
+                        "src":       p.src,
+                        "dst":       p.dst,
+                        "length":    str(p.length),
+                        "summary":   getattr(p, "summary", ""),
+                    })
+                if self._auto_scroll:
+                    self.table.scrollToBottom()
 
-            def _item(text):
-                it = QTableWidgetItem(str(text))
-                it.setForeground(QColor(C["text"]))
-                it.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-                return it
-
-            def _proto_item(text, fg=fg, bg=bg):
-                it = QTableWidgetItem(text)
-                it.setForeground(QColor(fg))
-                it.setBackground(QColor(bg))
-                it.setTextAlignment(Qt.AlignCenter)
-                it.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-                return it
-
-            self.table.setItem(i, 0, _item(d.get("timestamp", "")))
-            self.table.setItem(i, 1, _proto_item(proto))
-            self.table.setItem(i, 2, _item(d.get("src", "")))
-            self.table.setItem(i, 3, _item(d.get("dst", "")))
-            self.table.setItem(i, 4, _item(str(d.get("length", ""))))
-
-        self.table.scrollToBottom()
-
-        # Stats
-        total = self._pkt_count if not self.manager else len(rows)
-        self.stat_pkts._val_lbl.setText(str(total))
-
-        if self.manager:
-            proto_data = self.manager.count_by_protocol(
-                self.manager.get_filtered_packets()
-            )
+            # Stats
+            total = len(packets)
+            proto_data = self.manager.count_by_protocol(packets)
             if isinstance(proto_data, dict):
                 self._proto_counts = proto_data
 
+        else:
+            # Modo demo: mesma lógica com _pkt_buf
+            current_rows = self.table.rowCount()
+            new_pkts     = self._pkt_buf[current_rows:]
+
+            if new_pkts:
+                self.table.setRowCount(len(self._pkt_buf))
+                for i, d in enumerate(new_pkts):
+                    self._render_row(current_rows + i, d)
+                if self._auto_scroll:
+                    self.table.scrollToBottom()
+
+            total = self._pkt_count
+
+        self.stat_pkts._val_lbl.setText(str(total))
+
         top = sorted(self._proto_counts.items(), key=lambda x: -x[1])[:3]
-        self.stat_protos._val_lbl.setText(
-            "\n".join(f"{p}  {c}" for p, c in top) or "—"
-        )
-        self.stat_protos._val_lbl.setStyleSheet(
-            f"font-size: 11px; color: {C['green']}; font-weight: bold; letter-spacing: 1px;"
-        )
+        if top:
+            self.stat_protos._val_lbl.setText(
+                "\n".join(f"{p}  {c}" for p, c in top)
+            )
+            self.stat_protos._val_lbl.setStyleSheet(
+                f"font-size: 11px; color: {C['green']}; font-weight: bold; letter-spacing: 1px;"
+            )
+
+    def _on_scroll(self, value):
+        """Pausa auto-scroll quando o utilizador rola para cima; retoma ao chegar ao fundo."""
+        sb = self.table.verticalScrollBar()
+        self._auto_scroll = (value == sb.maximum())
+
+    def _render_row(self, i: int, d: dict):
+        """Renderiza uma única linha na tabela."""
+        proto = str(d.get("protocol", "?")).upper()
+        fg, bg = PROTO_COLORS.get(proto, (C["muted"], C["bg3"]))
+
+        def _item(text, color=C["text"]):
+            it = QTableWidgetItem(str(text))
+            it.setForeground(QColor(color))
+            it.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+            return it
+
+        def _proto_item(text):
+            it = QTableWidgetItem(text)
+            it.setForeground(QColor(fg))
+            it.setBackground(QColor(bg))
+            it.setTextAlignment(Qt.AlignCenter)
+            it.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+            return it
+
+        self.table.setItem(i, 0, _item(d.get("timestamp", "")))
+        self.table.setItem(i, 1, _proto_item(proto))
+        self.table.setItem(i, 2, _item(d.get("src", "")))
+        self.table.setItem(i, 3, _item(d.get("dst", "")))
+        self.table.setItem(i, 4, _item(d.get("length", ""), C["muted"]))
+        self.table.setItem(i, 5, _item(d.get("summary", ""), C["muted"]))
 
     def _clear_table(self):
         if self.manager:
