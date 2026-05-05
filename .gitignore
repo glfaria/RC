@@ -10,3 +10,25 @@ env/
 .venv/
 
 *.json
+
+# LaTeX build files
+*.aux
+*.log
+*.toc
+*.out
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Bibliography
+*.bbl
+*.blg
+
+# Misc
+*.nav
+*.snm
+*.vrb
+
+report/main.pdf

@@ -7,14 +7,14 @@ class Capturer:
         self.running = False
         self.thread = None
 
-    def start(self, process_packet):
+    def start(self, handle_packet):
         self.running = True
 
         def _sniff():
             try:
                 sniff(
                     iface=self.iface,
-                    prn=process_packet,
+                    prn=handle_packet,
                     store=False,
                     stop_filter=lambda x: not self.running
                 )
