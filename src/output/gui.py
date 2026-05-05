@@ -18,7 +18,7 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QLabel, QTableWidget, QTableWidgetItem,
-    QHeaderView, QFrame, QAbstractItemView,
+    QHeaderView, QFrame, QAbstractItemView, QDialog, QTextEdit,
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject, QThread
 from PySide6.QtGui import QColor
@@ -308,6 +308,79 @@ class SnifferGUI(QMainWindow):
 
     # ── Build ─────────────────────────────────────────────────────────────────
 
+    def _show_packet_details(self):
+        row = self.table.currentRow()
+        if row < 0:
+            return
+
+        # obter pacote real
+        if self.manager:
+            packets = self.manager.get_filtered_packets()
+            if row >= len(packets):
+                return
+            p = packets[row]
+
+            details = self._format_packet_details(p)
+        else:
+            d = self._pkt_buf[row]
+            details = "\n".join(f"{k}: {v}" for k, v in d.items())
+
+        self._open_details_dialog(details)
+
+    def _open_details_dialog(self, text):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Detalhes do Pacote")
+        dlg.resize(600, 400)
+
+        layout = QVBoxLayout(dlg)
+
+        txt = QTextEdit()
+        txt.setReadOnly(True)
+        txt.setText(text)
+        txt.setStyleSheet(f"""
+            background: {C["bg"]};
+            color: {C["text"]};
+            font-family: Courier New;
+        """)
+
+        layout.addWidget(txt)
+
+        dlg.exec()
+
+    def _format_packet_details(self, p):
+        def section(title):
+            return f"\n{'─' * 12}  {title}  {'─' * 12}\n"
+
+        def field(k, v):
+            return f"{k:<22} │ {v}"
+
+        lines = []
+        
+        # Header
+        lines.append("╔" + "═" * 48 + "╗")
+        lines.append("║{:^48}║".format("PACKET DETAIL"))
+        lines.append("╚" + "═" * 48 + "╝\n")
+
+        # Info geral
+        lines.append(field("Timestamp", p.timestamp))
+        lines.append(field("Protocol",  p.protocol))
+        lines.append(field("Source",    p.src))
+        lines.append(field("Destination", p.dst))
+        lines.append(field("Length",    p.length))
+        lines.append(field("Summary",   getattr(p, "summary", "")))
+
+        details = getattr(p, "details", {})
+
+        # Layers
+        for layer, fields in details.items():
+            lines.append(section(layer.upper()))
+            for k, v in fields.items():
+                lines.append(field(k, v))
+
+        lines.append("\n" + "═" * 50)
+
+        return "\n".join(lines)
+
     def _build_ui(self):
         root = QWidget()
         self.setCentralWidget(root)
@@ -422,6 +495,8 @@ class SnifferGUI(QMainWindow):
         self.table.setSortingEnabled(False)
         self.table.setFocusPolicy(Qt.NoFocus)
 
+        self.table.itemSelectionChanged.connect(self._show_packet_details)
+
         hh = self.table.horizontalHeader()
         hh.setSectionResizeMode(0, QHeaderView.Stretch);    self.table.setColumnWidth(0, 100)
         hh.setSectionResizeMode(1, QHeaderView.Stretch);    self.table.setColumnWidth(1, 72)
@@ -522,6 +597,8 @@ class SnifferGUI(QMainWindow):
 
         if self.manager:
             self.manager.set_filters(protocol=proto, ip=ip, mac=mac)
+
+        self.table.setRowCount(0)
 
         self._update_table()
 
