@@ -14,13 +14,19 @@ class PacketFilter:
         self.end = end
 
     def apply(self, packet):
-        if self.protocol and packet.protocol != self.protocol:
+        if self.protocol and (packet.protocol or "").casefold() != self.protocol.casefold():
             return False
 
-        if self.ip and not (packet.src == self.ip or packet.dst == self.ip):
+        if self.ip and not (
+            (packet.src or "").casefold() == self.ip.casefold() or 
+            (packet.dst or "").casefold() == self.ip.casefold()
+        ):
             return False
 
-        if self.mac and not (packet.src == self.mac or packet.dst == self.mac):
+        if self.mac and not (
+            (packet.details["ethernet"]["src_mac"]  or "").casefold() == self.mac.casefold() or 
+            (packet.details["ethernet"]["dst_mac"] or "").casefold() == self.mac.casefold()
+        ):
             return False
 
         if self.start and packet.timestamp < self.start:

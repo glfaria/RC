@@ -1,29 +1,17 @@
-"""protocols/stp.py — Parser STP/RSTP (IEEE 802.1D).
-
-Identificado pelo ethertype < 0x0600 (campo Length no 802.3)
-com LLC header AA-AA-03 (SNAP) ou 42-42 (STP).
-O EtherType 0x002e indica STP sobre LLC.
-"""
-
 import struct
 
 
 def parse_stp(raw: bytes, offset: int, result: dict) -> dict:
-    """
-    STP BPDU começa após o header Ethernet (14 bytes) + LLC (3 bytes).
-    Offset recebido já aponta para o início do BPDU.
-    """
+
     result["protocol"] = "STP"
 
     if len(raw) < offset + 4:
         result["summary"] = "STP frame demasiado curto"
         return result
 
-    # LLC header: DSAP(1) + SSAP(1) + Control(1)
-    # Para STP: DSAP=0x42, SSAP=0x42, Control=0x03
     llc_offset = offset
     if len(raw) > llc_offset + 2 and raw[llc_offset] == 0x42 and raw[llc_offset + 1] == 0x42:
-        offset = llc_offset + 3   # salta LLC header
+        offset = llc_offset + 3  
 
     if len(raw) < offset + 4:
         result["summary"] = "STP BPDU demasiado curto"
@@ -43,7 +31,6 @@ def parse_stp(raw: bytes, offset: int, result: dict) -> dict:
         "bpdu_type_name": type_name,
     }
 
-    # Configuration BPDU tem mais campos (35 bytes total)
     if bpdu_type == 0x00 and len(raw) >= offset + 35:
         flags      = raw[offset + 4]
         root_pri   = struct.unpack("!H", raw[offset + 5:offset + 7])[0]

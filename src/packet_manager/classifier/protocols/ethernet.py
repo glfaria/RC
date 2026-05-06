@@ -1,5 +1,4 @@
-"""protocols/ethernet.py — Parser Ethernet 
-
+"""
 Para adicionar um novo protocolo de rede:
   1. Criar protocols/meu_proto.py com parse_meu_proto(raw, offset, result)
   2. Importar e adicionar ao dict _NETWORK_PARSERS abaixo.
@@ -25,17 +24,14 @@ ETHERTYPE_NAMES = {
     0x8847: "MPLS",
 }
 
-# EtherType → função de parse
-# Adiciona aqui para suportar novos protocolos de camada 3.
+# Adicionar aqui para suportar novos protocolos de camada 3.
 _NETWORK_PARSERS: dict[int, callable] = {
     ETH_P_IP:  parse_ipv4,
     ETH_P_ARP: parse_arp,
     ETH_P_IP6: parse_ipv6,
 }
 
-# EtherTypes que usam LLC/SNAP (valor < 0x0600 é comprimento, não tipo)
-# Nestes casos despachamos pelo conteúdo LLC em vez do ethertype.
-_LLC_ETHERTYPES = {0x002E, 0x0026}   # valores conhecidos de STP over LLC
+_LLC_ETHERTYPES = {0x002E, 0x0026} 
 
 
 def parse_ethernet(raw: bytes, result: dict) -> dict:
@@ -54,8 +50,6 @@ def parse_ethernet(raw: bytes, result: dict) -> dict:
         "ethertype_name": ETHERTYPE_NAMES.get(ethertype, "UNKNOWN"),
     }
 
-    # EtherType < 0x0600 → campo é comprimento (IEEE 802.3), não tipo
-    # Verificar LLC header para identificar o protocolo real
     if ethertype < 0x0600 or ethertype in _LLC_ETHERTYPES:
         return _parse_llc(raw, 14, ethertype, result)
 
@@ -63,7 +57,6 @@ def parse_ethernet(raw: bytes, result: dict) -> dict:
     if parser:
         return parser(raw, 14, result)
 
-    # EtherType sem parser dedicado
     result["summary"] = f"EtherType 0x{ethertype:04x} ({ETHERTYPE_NAMES.get(ethertype, 'UNKNOWN')})"
     return result
 
@@ -77,11 +70,9 @@ def _parse_llc(raw: bytes, offset: int, ethertype: int, result: dict) -> dict:
     dsap = raw[offset]
     ssap = raw[offset + 1]
 
-    # STP usa DSAP=0x42 SSAP=0x42
     if dsap == 0x42 and ssap == 0x42:
         return parse_stp(raw, offset, result)
 
-    # SNAP: DSAP=0xAA SSAP=0xAA → 5 bytes de SNAP header a seguir
     if dsap == 0xAA and ssap == 0xAA and len(raw) >= offset + 8:
         snap_type = struct.unpack("!H", raw[offset + 6:offset + 8])[0]
         parser = _NETWORK_PARSERS.get(snap_type)

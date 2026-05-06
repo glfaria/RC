@@ -9,6 +9,4 @@ class BothOutput:
     def write_packet(self, packet):
         self.live.write_packet(packet)
         self.log.write_packet(packet)
-
-    # def close(self):
-    #     self.log.close()
+        
